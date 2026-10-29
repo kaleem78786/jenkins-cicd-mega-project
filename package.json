@@ -1,0 +1,13 @@
+{
+  "name": "jenkins-mega-app",
+  "version": "1.0.0",
+  "description": "End-to-End Jenkins CI/CD Project with Dev, Stage, Prod and Health Checks",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
