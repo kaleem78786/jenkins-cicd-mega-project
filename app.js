@@ -8,7 +8,7 @@ const VERSION = process.env.APP_VERSION || 'v1';
 // Main Route
 app.get('/', (req, res) => {
   res.send(`
-    <h1>🚀 Welcome to DevOps Mega CI/CD Project!</h1>
+    <h1>🚀 Welcome to DevOps Mega Edited CI/CD Project!</h1>
     <p><b>Environment:</b> ${ENV.toUpperCase()}</p>
     <p><b>Build Version:</b> ${VERSION}</p>
   `);
