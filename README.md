@@ -26,7 +26,7 @@ sudo apt install -y docker.io
 sudo usermod -aG docker ubuntu
 sudo systemctl restart docker
 
-# 4. Open required application ports in Ubuntu UFW firewall (if enabled)
+# 4. Open required application ports in Ubuntu UFW firewall (ifenabled)
 sudo ufw allow 22/tcp
 sudo ufw allow 8080/tcp
 sudo ufw allow 3001/tcp
