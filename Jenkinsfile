@@ -91,30 +91,29 @@ pipeline {
             }
         }
 
-        stage('5. Deploy & Health Check - STAGE') {
-            steps {
-                echo "🚀 STAGE Environment (Port ${STAGE_PORT}) par deploy ho raha hai..."
-                sshagent(['aws-ec2-ssh-key']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${TARGET_SERVER_IP} "
-                            docker stop app-stage || true
-                            docker rm app-stage || true
-                            docker run -d --name app-stage --restart always \
-                                -p ${STAGE_PORT}:3000 \
-                                -e APP_ENV=staging \
-                                -e APP_VERSION=v${BUILD_NUMBER} \
-                                ${IMAGE_TAG}
-                        "
-                    '''
-                }
-                
-                echo "🩺 STAGE Health Check chal raha hai..."
-                sh '''
-                    sleep 5
-                    curl -f http://${TARGET_SERVER_IP}:${STAGE_PORT}/health
-                '''
-            }
+stage('5. Deploy & Health Check - STAGE') {
+    steps {
+        echo "🚀 STAGE Environment (Port ${STAGE_PORT}) par deploy ho raha hai..."
+        sshagent(['aws-ec2-ssh-key']) {
+            sh '''
+                ssh -o StrictHostKeyChecking=no ${SSH_USER}@${TARGET_SERVER_IP} "
+                    docker stop app-stage || true
+                    docker rm app-stage || true
+                    docker run -d --name app-stage --restart always \
+                        -p ${STAGE_PORT}:3000 \
+                        -e APP_ENV=staging \
+                        -e APP_VERSION=v${BUILD_NUMBER} \
+                        ${IMAGE_TAG}
+                "
+            '''
         }
+        echo "🩺 STAGE Health Check chal raha hai..."
+        sh '''
+            sleep 5
+            curl -f http://${TARGET_SERVER_IP}:${STAGE_PORT}/health
+        '''
+    }
+}
 
         stage('6. Manual Approval for PROD') {
             when {
@@ -128,59 +127,52 @@ pipeline {
             }
         }
 
-        stage('7. Deploy & Health Check - PROD') {
-            when {
-                expression { return params.DEPLOY_TO_PROD == true }
-            }
-            steps {
-                echo "🔥 PRODUCTION Environment (Port ${PROD_PORT}) par deploy ho raha hai..."
-                script {
-                    try {
-                        sshagent(['aws-ec2-ssh-key']) {
-                            sh '''
-                                ssh -o StrictHostKeyChecking=no ${SSH_USER}@${TARGET_SERVER_IP} "
-                                    # Purane prod container ka backup rakhna rollback ke liye
-                                    docker stop app-prod-backup || true
-                                    docker rm app-prod-backup || true
-                                    docker rename app-prod app-prod-backup || true
-                                    docker stop app-prod-backup || true
-                                    
-                                    # Naya container chalana
-                                    docker run -d --name app-prod --restart always \
-                                        -p ${PROD_PORT}:3000 \
-                                        -e APP_ENV=production \
-                                        -e APP_VERSION=v${BUILD_NUMBER} \
-                                        ${IMAGE_TAG}
-                                "
-                            '''
-                        }
-                        
-                        echo "🩺 PROD Health Check chal raha hai..."
-                        sh '''
-                            sleep 5
-                            curl -f http://${TARGET_SERVER_IP}:${PROD_PORT}/health
-                        '''
-                        echo "✅ PROD Deployment aur Health Check 100% Kamyab!"
-                        
-                    } catch (Exception e) {
-                        echo "🚨 PROD Health Check FAIL ho gaya! Auto-Rollback shuru ho raha hai..."
-                        sshagent(['aws-ec2-ssh-key']) {
-                            sh '''
-                                ssh -o StrictHostKeyChecking=no ${SSH_USER}@${TARGET_SERVER_IP} "
-                                    docker stop app-prod || true
-                                    docker rm app-prod || true
-                                    docker rename app-prod-backup app-prod || true
-                                    docker start app-prod || true
-                                "
-                            '''
-                        }
-                        error("Production Deployment failed! Pichla stable version wapis restore kar diya gaya hai.")
-                    }
+ stage('7. Deploy & Health Check - PROD') {
+    when {
+        expression { return params.DEPLOY_TO_PROD == true }
+    }
+    steps {
+        echo "🔥 PRODUCTION Environment (Port ${PROD_PORT}) par deploy ho raha hai..."
+        script {
+            try {
+                sshagent(['aws-ec2-ssh-key']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${TARGET_SERVER_IP} "
+                            docker stop app-prod-backup || true
+                            docker rm app-prod-backup || true
+                            docker rename app-prod app-prod-backup || true
+                            docker stop app-prod-backup || true
+                            
+                            docker run -d --name app-prod --restart always \
+                                -p ${PROD_PORT}:3000 \
+                                -e APP_ENV=production \
+                                -e APP_VERSION=v${BUILD_NUMBER} \
+                                ${IMAGE_TAG}
+                        "
+                    '''
                 }
+                echo "🩺 PROD Health Check chal raha hai..."
+                sh '''
+                    sleep 5
+                    curl -f http://${TARGET_SERVER_IP}:${PROD_PORT}/health
+                '''
+            } catch (Exception e) {
+                echo "🚨 PROD Health Check FAIL ho gaya! Auto-Rollback..."
+                sshagent(['aws-ec2-ssh-key']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${TARGET_SERVER_IP} "
+                            docker stop app-prod || true
+                            docker rm app-prod || true
+                            docker rename app-prod-backup app-prod || true
+                            docker start app-prod || true
+                        "
+                    '''
+                }
+                error("Production failed! Rollback done.")
             }
         }
     }
-
+}
     // 4. Post-Build Actions (Cleanup + Email Alerts)
     post {
         always {
