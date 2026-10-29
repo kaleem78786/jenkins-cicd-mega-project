@@ -173,6 +173,8 @@ stage('5. Deploy & Health Check - STAGE') {
         }
     }
 }
+    }
+
     // 4. Post-Build Actions (Cleanup + Email Alerts)
     post {
         always {
